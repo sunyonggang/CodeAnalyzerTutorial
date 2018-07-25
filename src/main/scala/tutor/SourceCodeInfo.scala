@@ -1,22 +1,34 @@
 package tutor
 
-import tutor.utils.FileUtil._
+import com.typesafe.scalalogging.StrictLogging
 import tutor.utils.FileUtil
+import tutor.utils.FileUtil._
 
-case class SourceCodeInfo(path: String, localPath: String, count: Int)
-object SourceCodeInfo{
+import scala.util.Try
+
+final case class SourceCodeInfo(path: String, localPath: String, lineCount: Int)
+
+object SourceCodeInfo {
+
   implicit object SourceCodeInfoOrdering extends Ordering[SourceCodeInfo] {
-    override def compare(x: SourceCodeInfo, y: SourceCodeInfo): Int = x.count compare y.count
+    override def compare(x: SourceCodeInfo, y: SourceCodeInfo): Int = x.lineCount compare y.lineCount
   }
+
 }
 
-trait SourceCodeAnalyzer {
-  def processFile(path: Path): SourceCodeInfo = {
+trait SourceCodeAnalyzer extends StrictLogging {
+  def processFile(path: Path): Try[SourceCodeInfo] = {
     import scala.io._
-
-    val source = Source.fromFile(path)
-    val lines = source.getLines.toList
-    SourceCodeInfo(path, FileUtil.extractLocalPath(path), lines.length)
+    Try {
+      val source = Source.fromFile(path)
+      try {
+        val lines = source.getLines.toList
+        SourceCodeInfo(path, FileUtil.extractLocalPath(path), lines.length)
+      } catch {
+        case e: Throwable => throw new IllegalArgumentException(s"error processing file $path", e)
+      } finally {
+        source.close()
+      }
+    }
   }
-
 }
